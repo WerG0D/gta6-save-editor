@@ -1,0 +1,4 @@
+{
+  "Marvisak/VIctory": {"require_game_name": false},
+  "xcl-dev/xcl": {"require_game_name": true}
+}

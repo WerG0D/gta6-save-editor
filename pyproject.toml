@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gta6-save-editor"
+version = "0.1.0.dev0"
+description = "Read-only research tools for GTA VI story-mode saves"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+
+[project.scripts]
+gta6-save = "gta6_save:main"
+
+[tool.setuptools]
+py-modules = ["gta6_save"]
