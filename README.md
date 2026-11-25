@@ -18,6 +18,16 @@ To compare two offline copies of a slot directory, run `gta6-save compare-slots 
 
 For VIctory captures, use `gta6-save victory-manifest PATH/TO/manifest` to identify corresponding blobs across versions. See the [collection procedure](docs/COLLECTION.md#collecting-from-victory).
 
+## Find a candidate integer field
+
+Run `python examples/find_balance.py` from the repository root for a self-checking synthetic example. With private offline copies of the same logical blob and values observed in game, use:
+
+```console
+gta6-save find-integer --sample A 2000 --sample A2 2000 --sample B 1750 --sample C 1500 --predict D
+```
+
+Each JSON line gives a matching byte offset and the prediction from D. Check it against an independently recorded observation. The search assumes a fixed offset and an unsigned, uncompressed integer. Set `--width` to 1, 2, 4 or 8 bytes (default 4) and `--byteorder` to little or big (default little). Multiple matches remain candidates. No matches produce empty output. A prediction of null means the held-out file ends before the field is complete.
+
 ## Track save support
 
 Every six hours, [Port save watch](../../actions/workflows/watch.yml) checks recent GitHub issues, pull requests and releases from the projects in [the watch list](scripts/ports.json). It scans titles and descriptions updated within the last 14 days, grouping new matching URLs into one triage issue per project per scan. Previous bot issues, including closed ones, record links already reported. Reports may describe failures. Follow the [collection protocol](docs/COLLECTION.md) to verify a build.
