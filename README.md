@@ -28,6 +28,23 @@ gta6-save find-integer --sample A 2000 --sample A2 2000 --sample B 1750 --sample
 
 Each JSON line gives a matching byte offset and the prediction from D. Check it against an independently recorded observation. The search assumes a fixed offset and an unsigned, uncompressed integer. Set `--width` to 1, 2, 4 or 8 bytes (default 4) and `--byteorder` to little or big (default little). Multiple matches remain candidates. No matches produce empty output. A prediction of null means the held-out file ends before the field is complete.
 
+## Test an edit on an offline copy
+
+Run `python examples/find_balance.py` for a synthetic example that finds an
+offset, predicts the value in a held-out file, and changes that value in a
+separate verified copy. For an independently verified field, take the input
+digest from `gta6-save inspect`, then pass it to the patch command:
+
+```console
+gta6-save patch-integer D D-edited --sha256 INPUT_DIGEST --offset 12 --width 4 --byteorder little --expect 1475 --value 1600
+```
+
+The command requires the exact input SHA-256 and the expected old value. It
+verifies the output before publishing it at a new path. The destination
+filesystem must support hard links, as NTFS does. The command works on raw
+unsigned integers at fixed offsets. GTA VI field layouts and save integrity
+checks still require validation with real saves.
+
 ## Track save support
 
 Use `gta6-save capture SNAPSHOT --commit COMMIT` for a local JSON report on an

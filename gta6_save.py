@@ -1,4 +1,4 @@
-"""Read-only binary inspection tools for save research."""
+"""Inspect binary saves and test guarded edits on offline copies."""
 import argparse
 import json
 import mmap
@@ -9,6 +9,7 @@ from contextlib import ExitStack
 from pathlib import Path
 
 from save_capture import BLOCK, capture, inspect_file, victory_manifest
+from save_patch import patch_integer
 
 
 def changed_ranges(left, right):
@@ -126,6 +127,15 @@ def main(argv=None):
     search.add_argument("--width", type=int, choices=(1, 2, 4, 8), default=4, help="Integer width in bytes (default: 4)")
     search.add_argument("--byteorder", choices=("little", "big"), default="little")
     search.add_argument("--predict", type=Path, metavar="HELD_OUT_FILE")
+    patch = commands.add_parser("patch-integer", help="Write a verified integer edit to a new offline copy")
+    patch.add_argument("source", type=Path)
+    patch.add_argument("output", type=Path)
+    patch.add_argument("--sha256", required=True, help="Expected input SHA-256")
+    patch.add_argument("--offset", type=int, required=True, help="Byte offset from find-integer")
+    patch.add_argument("--width", type=int, choices=(1, 2, 4, 8), required=True)
+    patch.add_argument("--byteorder", choices=("little", "big"), required=True)
+    patch.add_argument("--expect", type=int, required=True, help="Expected unsigned integer before the edit")
+    patch.add_argument("--value", type=int, required=True, help="New unsigned integer")
     args = parser.parse_args(argv)
     try:
         if args.command == "inspect":
@@ -140,6 +150,10 @@ def main(argv=None):
         elif args.command == "find-integer":
             for row in find_integer(args.sample, args.width, args.byteorder, args.predict):
                 print(json.dumps(row))
+        elif args.command == "patch-integer":
+            result = patch_integer(args.source, args.output, args.sha256, args.offset,
+                                   args.width, args.byteorder, args.expect, args.value)
+            print(json.dumps(result))
         else:
             for start, end in changed_ranges(args.before, args.after):
                 print(json.dumps({"start": start, "end_exclusive": end}))

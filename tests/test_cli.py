@@ -70,6 +70,49 @@ class CliTest(unittest.TestCase):
         self.b.write_bytes(b"")
         self.assertEqual(self.invoke("find-integer", "--sample", self.a, "1", "--sample", self.b, "0"), [])
 
+    def test_patch_integer_writes_only_the_selected_field(self):
+        original = b"A" * (BLOCK - 1) + b"\x12\x34" + b"B" * BLOCK
+        self.a.write_bytes(original)
+        digest = hashlib.sha256(original).hexdigest()
+        expected = original[:BLOCK - 1] + b"\x56\x78" + original[BLOCK + 1:]
+        rows = self.invoke("patch-integer", self.a, self.b, "--sha256", digest,
+                           "--offset", BLOCK - 1, "--width", 2, "--byteorder", "big",
+                           "--expect", 0x1234, "--value", 0x5678)
+        self.assertEqual(self.a.read_bytes(), original)
+        self.assertEqual(self.b.read_bytes(), expected)
+        self.assertEqual(rows[0]["sha256"], hashlib.sha256(expected).hexdigest())
+        self.assertEqual(rows[0]["new_value"], 0x5678)
+
+    def test_patch_integer_refuses_stale_or_unsafe_edits(self):
+        original = b"\x34\x12"
+        self.a.write_bytes(original)
+        digest = hashlib.sha256(original).hexdigest()
+        cases = [
+            (self.b, "0" * 64, 0, 0x1234, 42, "SHA-256 does not match"),
+            (self.b, digest, 0, 43, 42, "Expected integer does not match"),
+            (self.b, digest, 1, 0x1234, 42, "Field extends beyond"),
+            (self.b, digest, -1, 0x1234, 42, "Offset must be nonnegative"),
+            (self.b, digest, 0, 0x1234, 65536, "outside the unsigned"),
+            (self.b, "bad", 0, 0x1234, 42, "64-digit SHA-256"),
+            (self.a, digest, 0, 0x1234, 42, None),
+            (self.a.with_name("existing"), digest, 0, 0x1234, 42, None),
+        ]
+        existing = self.a.with_name("existing")
+        existing.write_bytes(b"keep")
+        for output, sha, offset, old, new, message in cases:
+            with self.subTest(output=output, offset=offset, expected_error=message):
+                args = ["patch-integer", self.a, output, "--sha256", sha, "--offset", offset,
+                        "--width", 2, "--byteorder", "little", "--expect", old, "--value", new]
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    self.assertEqual(main(list(map(str, args))), 1)
+                if message:
+                    self.assertIn(message, stderr.getvalue())
+                self.assertEqual(self.a.read_bytes(), original)
+                self.assertEqual(existing.read_bytes(), b"keep")
+                self.assertFalse(self.b.exists())
+                self.assertEqual(list(self.a.parent.glob(".save-patch-*")), [])
+
     def test_missing(self):
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(main(["inspect", str(self.a)]), 1)
