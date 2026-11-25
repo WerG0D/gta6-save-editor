@@ -1,6 +1,5 @@
 """Read-only binary inspection tools for save research."""
 import argparse
-import hashlib
 import json
 import mmap
 import os
@@ -9,17 +8,7 @@ import sys
 from contextlib import ExitStack
 from pathlib import Path
 
-BLOCK = 64 * 1024
-
-
-def inspect_file(path):
-    digest = hashlib.sha256()
-    size = 0
-    with path.open("rb") as stream:
-        while block := stream.read(BLOCK):
-            size += len(block)
-            digest.update(block)
-    return {"file": path.name, "bytes": size, "sha256": digest.hexdigest()}
+from save_capture import BLOCK, capture, inspect_file, victory_manifest
 
 
 def changed_ranges(left, right):
@@ -85,26 +74,6 @@ def compare_slots(before, after):
         yield {"path": path, "change": change, "before": left.get(path), "after": right.get(path)}
 
 
-def victory_manifest(path):
-    """Decode logical names from one VIctory version's binary manifest."""
-    data = path.read_bytes()
-    offset = 0
-    names = []
-    while offset < len(data):
-        if len(data) - offset < 4:
-            raise ValueError(f"Incomplete string length at byte {offset}")
-        size = int.from_bytes(data[offset:offset + 4], "little")
-        offset += 4
-        if size > len(data) - offset:
-            raise ValueError(f"Incomplete string at byte {offset}")
-        names.append(data[offset:offset + size].decode("utf-8"))
-        offset += size
-    if len(names) < 2:
-        raise ValueError("Manifest requires container and display names")
-    return {"container": names[0], "display": names[1],
-            "blobs": [{"name": name, "file": str(i)} for i, name in enumerate(names[2:])]}
-
-
 def find_integer(samples, width, byteorder, predict):
     """Yield fixed offsets matching every observed unsigned integer."""
     values = [int(value) for _, value in samples]
@@ -148,6 +117,10 @@ def main(argv=None):
     compare.add_argument("after", type=Path)
     manifest = commands.add_parser("victory-manifest", help="Map logical blob names to numbered files in one VIctory manifest")
     manifest.add_argument("file", type=Path)
+    snapshot = commands.add_parser("capture", help="Report VIctory versions and logical blob hashes from an offline copy")
+    snapshot.add_argument("directory", type=Path)
+    snapshot.add_argument("--commit", required=True, help="VIctory build commit recorded by the tester")
+    snapshot.add_argument("--previous", type=Path, help="Earlier offline copy with the same directory layout")
     search = commands.add_parser("find-integer", help="Find fixed offsets matching observed unsigned integers")
     search.add_argument("--sample", nargs=2, action="append", required=True, metavar=("FILE", "VALUE"))
     search.add_argument("--width", type=int, choices=(1, 2, 4, 8), default=4, help="Integer width in bytes (default: 4)")
@@ -162,6 +135,8 @@ def main(argv=None):
                 print(json.dumps(change))
         elif args.command == "victory-manifest":
             print(json.dumps(victory_manifest(args.file)))
+        elif args.command == "capture":
+            print(json.dumps(capture(args.directory, args.commit, args.previous), indent=2, sort_keys=True))
         elif args.command == "find-integer":
             for row in find_integer(args.sample, args.width, args.byteorder, args.predict):
                 print(json.dumps(row))

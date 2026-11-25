@@ -14,4 +14,4 @@ license = {text = "MIT"}
 gta6-save = "gta6_save:main"
 
 [tool.setuptools]
-py-modules = ["gta6_save"]
+py-modules = ["gta6_save", "save_capture"]
