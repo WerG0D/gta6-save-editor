@@ -16,6 +16,8 @@ Replace the example paths with copies of your files. `inspect` prints the filena
 
 To compare two offline copies of a slot directory, run `gta6-save compare-slots SLOT_A SLOT_B`. Each JSON line identifies an added, removed or modified file by relative path, with sizes and SHA-256 hashes. Identical directories produce no output. Renames appear as a removal and an addition. Links inside the directories are skipped.
 
+For VIctory captures, use `gta6-save victory-manifest PATH/TO/manifest` to identify corresponding blobs across versions. See the [collection procedure](docs/COLLECTION.md#collecting-from-victory).
+
 ## Track save support
 
 Every six hours, [Port save watch](../../actions/workflows/watch.yml) checks recent GitHub issues, pull requests and releases from the projects in [the watch list](scripts/ports.json). It scans titles and descriptions updated within the last 14 days, grouping new matching URLs into one triage issue per project per scan. Previous bot issues, including closed ones, record links already reported. Reports may describe failures. Follow the [collection protocol](docs/COLLECTION.md) to verify a build.

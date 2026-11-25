@@ -8,3 +8,9 @@
 6. Reserve a separate slot for validating predictions. Open a collection issue with sanitized relative paths, observations and reproduction steps. Keep personal saves, account identifiers, executables and game assets out of public reports.
 
 A maintainer reproduces the save and reload on the identified build, records the files involved and opens a parser task for the first independently verifiable field.
+
+## Collecting from VIctory
+
+The [reference implementation at ccfb029](https://github.com/Marvisak/VIctory/blob/ccfb02996eac831853e8324156f123eeff083e9d/crates/victory-hle/src/modules/xgamesave.rs) stores a manifest and numbered blob files together in each committed version directory. Keep each full snapshot private and record the exact build used. Ignore staging directories ending in `.new`. If several versions exist, record which version was observed in use or mark it unknown.
+
+Run `gta6-save victory-manifest PATH/TO/v1/manifest` on each copy. Match the container and logical blob names across snapshots, then use each manifest's own file number for the comparison. For example, if the same blob is file 0 in A and file 1 in B, run `gta6-save diff A/v1/0 B/v2/1`. Redact identifying names before sharing output. A readable manifest establishes the storage layout; verifying story progress also requires the in-game reload described above.
