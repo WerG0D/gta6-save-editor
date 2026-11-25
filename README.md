@@ -30,6 +30,10 @@ Each JSON line gives a matching byte offset and the prediction from D. Check it 
 
 ## Track save support
 
+Use `gta6-save capture SNAPSHOT --commit COMMIT` for a local JSON report on an
+offline VIctory save directory. Add `--previous EARLIER_SNAPSHOT` to compare
+the logical blobs across copies. See the [capture instructions](docs/COLLECTION.md#collecting-from-victory).
+
 Every six hours, [Port save watch](../../actions/workflows/watch.yml) checks recent GitHub issues, pull requests and releases from the projects in [the watch list](scripts/ports.json). It scans titles and descriptions updated within the last 14 days, grouping new matching URLs into one triage issue per project per scan. Previous bot issues, including closed ones, record links already reported. Reports may describe failures. Follow the [collection protocol](docs/COLLECTION.md) to verify a build.
 
 Run `python scripts/watch_ports.py` with an authenticated GitHub CLI to preview matches locally. Maintainers can also trigger the workflow from the Actions tab.
