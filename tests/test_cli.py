@@ -59,6 +59,17 @@ class CliTest(unittest.TestCase):
         self.assertIsNone(rows[2]["after"])
         self.assertEqual(self.invoke("compare-slots", self.a, self.a), [])
 
+    def test_find_integer_preserves_overlapping_candidates(self):
+        self.a.write_bytes(bytes.fromhex("00 00 00 ff ff"))
+        self.b.write_bytes(bytes.fromhex("01 01 01"))
+        reserved = self.a.with_name("reserved")
+        reserved.write_bytes(bytes.fromhex("12 34"))
+        rows = self.invoke("find-integer", "--width", "2", "--byteorder", "big",
+                           "--sample", self.a, "0", "--sample", self.b, "257", "--predict", reserved)
+        self.assertEqual([(r["offset"], r["prediction"]) for r in rows], [(0, 0x1234), (1, None)])
+        self.b.write_bytes(b"")
+        self.assertEqual(self.invoke("find-integer", "--sample", self.a, "1", "--sample", self.b, "0"), [])
+
     def test_missing(self):
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(main(["inspect", str(self.a)]), 1)

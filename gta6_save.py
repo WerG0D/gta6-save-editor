@@ -2,9 +2,11 @@
 import argparse
 import hashlib
 import json
+import mmap
 import os
 import stat
 import sys
+from contextlib import ExitStack
 from pathlib import Path
 
 BLOCK = 64 * 1024
@@ -103,6 +105,36 @@ def victory_manifest(path):
             "blobs": [{"name": name, "file": str(i)} for i, name in enumerate(names[2:])]}
 
 
+def find_integer(samples, width, byteorder, predict):
+    """Yield fixed offsets matching every observed unsigned integer."""
+    values = [int(value) for _, value in samples]
+    if len(set(values)) < 2:
+        raise ValueError("Provide at least two distinct observed values")
+    if any(value < 0 or value >= 1 << (8 * width) for value in values):
+        raise ValueError(f"Observed value outside the unsigned {width}-byte range")
+    patterns = [value.to_bytes(width, byteorder) for value in values]
+    with ExitStack() as stack:
+        views = []
+        for path, _ in samples:
+            stream = stack.enter_context(open(path, "rb"))
+            if os.fstat(stream.fileno()).st_size:
+                views.append(stack.enter_context(mmap.mmap(stream.fileno(), 0, access=mmap.ACCESS_READ)))
+            else:
+                views.append(b"")
+        reserved = stack.enter_context(predict.open("rb")) if predict else None
+        end = min(map(len, views))
+        offset = views[0].find(patterns[0], 0, end)
+        while offset >= 0:
+            if all(view[offset:offset + width] == pattern for view, pattern in zip(views[1:], patterns[1:])):
+                row = {"offset": offset, "width": width, "byteorder": byteorder}
+                if reserved:
+                    reserved.seek(offset)
+                    field = reserved.read(width)
+                    row["prediction"] = int.from_bytes(field, byteorder) if len(field) == width else None
+                yield row
+            offset = views[0].find(patterns[0], offset + 1, end)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -116,6 +148,11 @@ def main(argv=None):
     compare.add_argument("after", type=Path)
     manifest = commands.add_parser("victory-manifest", help="Map logical blob names to numbered files in one VIctory manifest")
     manifest.add_argument("file", type=Path)
+    search = commands.add_parser("find-integer", help="Find fixed offsets matching observed unsigned integers")
+    search.add_argument("--sample", nargs=2, action="append", required=True, metavar=("FILE", "VALUE"))
+    search.add_argument("--width", type=int, choices=(1, 2, 4, 8), default=4, help="Integer width in bytes (default: 4)")
+    search.add_argument("--byteorder", choices=("little", "big"), default="little")
+    search.add_argument("--predict", type=Path, metavar="HELD_OUT_FILE")
     args = parser.parse_args(argv)
     try:
         if args.command == "inspect":
@@ -125,6 +162,9 @@ def main(argv=None):
                 print(json.dumps(change))
         elif args.command == "victory-manifest":
             print(json.dumps(victory_manifest(args.file)))
+        elif args.command == "find-integer":
+            for row in find_integer(args.sample, args.width, args.byteorder, args.predict):
+                print(json.dumps(row))
         else:
             for start, end in changed_ranges(args.before, args.after):
                 print(json.dumps({"start": start, "end_exclusive": end}))
