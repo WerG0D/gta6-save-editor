@@ -14,6 +14,8 @@ gta6-save diff README.md README.md
 
 Replace the example paths with copies of your files. `inspect` prints the filename, size in bytes and SHA-256 digest as JSON. `diff` prints one JSON object per changed byte range, using decimal offsets with an inclusive start and exclusive end. Equal files produce no output. Successful comparisons exit with status 0 even when files differ. Read errors return 1. To run directly from source, use `python gta6_save.py` in place of `gta6-save`.
 
+To compare two offline copies of a slot directory, run `gta6-save compare-slots SLOT_A SLOT_B`. Each JSON line identifies an added, removed or modified file by relative path, with sizes and SHA-256 hashes. Identical directories produce no output. Renames appear as a removal and an addition. Links inside the directories are skipped.
+
 ## Track save support
 
 Every six hours, [Port save watch](../../actions/workflows/watch.yml) checks recent GitHub issues, pull requests and releases from the projects in [the watch list](scripts/ports.json). It scans titles and descriptions updated within the last 14 days, grouping new matching URLs into one triage issue per project per scan. Previous bot issues, including closed ones, record links already reported. Reports may describe failures. Follow the [collection protocol](docs/COLLECTION.md) to verify a build.
