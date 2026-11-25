@@ -1,4 +1,5 @@
-"""Run the CLI against five synthetic offline snapshots, checking its prediction."""
+"""Find, predict and patch a balance in synthetic offline snapshots."""
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -35,6 +36,17 @@ def main():
         if initial != [4, 12] or rows != [{"offset": 12, "width": 4, "byteorder": "little", "prediction": 1475}]:
             raise SystemExit("Synthetic validation failed")
         print("Verified against the separate observation for D: 1475")
+        source = Path(folder) / "D"
+        original = source.read_bytes()
+        result, = search([
+            sys.executable, str(CLI), "patch-integer", "D", "D-edited",
+            "--sha256", hashlib.sha256(original).hexdigest(), "--offset", "12",
+            "--width", "4", "--byteorder", "little", "--expect", "1475", "--value", "1600",
+        ])
+        edited = (Path(folder) / "D-edited").read_bytes()
+        if source.read_bytes() != original or edited != original[:12] + (1600).to_bytes(4, "little"):
+            raise SystemExit("Synthetic edit verification failed")
+        print("Verified edit in a separate copy:", json.dumps(result))
 
 
 if __name__ == "__main__":

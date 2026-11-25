@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gta6-save-editor"
 version = "0.1.0.dev0"
-description = "Read-only research tools for GTA VI story-mode saves"
+description = "Research tools for inspecting and testing edits on offline save files"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
@@ -14,4 +14,4 @@ license = {text = "MIT"}
 gta6-save = "gta6_save:main"
 
 [tool.setuptools]
-py-modules = ["gta6_save", "save_capture"]
+py-modules = ["gta6_save", "save_capture", "save_patch"]
