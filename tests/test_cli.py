@@ -42,6 +42,23 @@ class CliTest(unittest.TestCase):
                 self.assertEqual(self.a.read_bytes(), a)
                 self.assertEqual(self.b.read_bytes(), b)
 
+    def test_compare_slots(self):
+        for folder in (self.a, self.b):
+            (folder / "nested").mkdir(parents=True)
+            (folder / "same").write_bytes(b"unchanged")
+        (self.a / "nested/data").write_bytes(b"1")
+        (self.b / "nested/data").write_bytes(b"2")
+        (self.a / "removed").write_bytes(b"old")
+        (self.b / "added").write_bytes(b"")
+        rows = self.invoke("compare-slots", self.a, self.b)
+        self.assertEqual([(row["path"], row["change"]) for row in rows], [
+            ("added", "added"), ("nested/data", "modified"), ("removed", "removed")
+        ])
+        self.assertIsNone(rows[0]["before"])
+        self.assertEqual(rows[1]["after"], {"bytes": 1, "sha256": hashlib.sha256(b"2").hexdigest()})
+        self.assertIsNone(rows[2]["after"])
+        self.assertEqual(self.invoke("compare-slots", self.a, self.a), [])
+
     def test_missing(self):
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(main(["inspect", str(self.a)]), 1)
