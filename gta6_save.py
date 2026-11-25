@@ -83,6 +83,26 @@ def compare_slots(before, after):
         yield {"path": path, "change": change, "before": left.get(path), "after": right.get(path)}
 
 
+def victory_manifest(path):
+    """Decode logical names from one VIctory version's binary manifest."""
+    data = path.read_bytes()
+    offset = 0
+    names = []
+    while offset < len(data):
+        if len(data) - offset < 4:
+            raise ValueError(f"Incomplete string length at byte {offset}")
+        size = int.from_bytes(data[offset:offset + 4], "little")
+        offset += 4
+        if size > len(data) - offset:
+            raise ValueError(f"Incomplete string at byte {offset}")
+        names.append(data[offset:offset + size].decode("utf-8"))
+        offset += size
+    if len(names) < 2:
+        raise ValueError("Manifest requires container and display names")
+    return {"container": names[0], "display": names[1],
+            "blobs": [{"name": name, "file": str(i)} for i, name in enumerate(names[2:])]}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -94,6 +114,8 @@ def main(argv=None):
     compare = commands.add_parser("compare-slots", help="List changed files between two saved slot directories")
     compare.add_argument("before", type=Path)
     compare.add_argument("after", type=Path)
+    manifest = commands.add_parser("victory-manifest", help="Map logical blob names to numbered files in one VIctory manifest")
+    manifest.add_argument("file", type=Path)
     args = parser.parse_args(argv)
     try:
         if args.command == "inspect":
@@ -101,10 +123,12 @@ def main(argv=None):
         elif args.command == "compare-slots":
             for change in compare_slots(args.before, args.after):
                 print(json.dumps(change))
+        elif args.command == "victory-manifest":
+            print(json.dumps(victory_manifest(args.file)))
         else:
             for start, end in changed_ranges(args.before, args.after):
                 print(json.dumps({"start": start, "end_exclusive": end}))
-    except OSError as error:
+    except (OSError, ValueError) as error:
         print(error, file=sys.stderr)
         return 1
     return 0

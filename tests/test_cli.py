@@ -62,3 +62,17 @@ class CliTest(unittest.TestCase):
     def test_missing(self):
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(main(["inspect", str(self.a)]), 1)
+
+    def test_victory_manifest(self):
+        def manifest(*names):
+            return b"".join(len(s).to_bytes(4, "little") + s for s in names)
+
+        self.a.write_bytes(manifest(b"slot", b"", "caf\u00e9".encode(), b"stats"))
+        self.assertEqual(self.invoke("victory-manifest", self.a), [{
+            "container": "slot", "display": "",
+            "blobs": [{"name": "caf\u00e9", "file": "0"}, {"name": "stats", "file": "1"}]
+        }])
+        for data in [b"", b"\x01", manifest(b"slot"), b"\xff" * 4, manifest(b"s", b"\xff")]:
+            with self.subTest(data=data), contextlib.redirect_stderr(io.StringIO()):
+                self.a.write_bytes(data)
+                self.assertEqual(main(["victory-manifest", str(self.a)]), 1)
